@@ -4,7 +4,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 COPY frontend/ ./
 RUN npm run build
