@@ -91,8 +91,8 @@ Ce packaging permet :
 Le deploiement vise :
 
 - **Neon PostgreSQL** pour la persistance cloud,
-- **Render** pour le backend via Docker,
-- **Render** pour le frontend via Docker.
+- **Render** pour un service Docker unique,
+- **FastAPI** qui sert aussi le frontend React compile.
 
 La configuration Render est documentee dans :
 

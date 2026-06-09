@@ -13,10 +13,6 @@ class Settings(BaseSettings):
     openrouter_model: str = Field(default="openrouter/auto", alias="OPENROUTER_MODEL")
     openrouter_site_url: str = Field(default="http://localhost:5173", alias="OPENROUTER_SITE_URL")
     openrouter_app_name: str = Field(default="Estate AI", alias="OPENROUTER_APP_NAME")
-    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
-    openrouter_model: str = Field(default="openrouter/auto", alias="OPENROUTER_MODEL")
-    openrouter_site_url: str = Field(default="http://localhost:5173", alias="OPENROUTER_SITE_URL")
-    openrouter_app_name: str = Field(default="Estate AI", alias="OPENROUTER_APP_NAME")
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: real-estate-ai-backend
+    name: real-estate-ai
     env: docker
     plan: starter
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
     envVars:
@@ -21,16 +21,3 @@ services:
         sync: false
       - key: OPENROUTER_APP_NAME
         value: Estate AI
-
-  - type: web
-    name: real-estate-ai-frontend
-    env: docker
-    plan: starter
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: .
-    healthCheckPath: /
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: real-estate-ai-backend
-          type: web

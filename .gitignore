@@ -18,6 +18,9 @@ env/
 
 # Backend artifacts and local databases
 backend/ml/models/
+!backend/ml/models/
+!backend/ml/models/xgboost_model.joblib
+!backend/ml/models/metrics.json
 backend/ml/artifacts/
 backend/**/__pycache__/
 backend/*.db

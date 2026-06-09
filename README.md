@@ -55,13 +55,15 @@ npm run dev
 ## Deploiement cible
 
 - **Base** : Neon PostgreSQL
-- **Backend** : Render en conteneur Docker
-- **Frontend** : Render en conteneur Docker
+- **Application** : un seul service Render en conteneur Docker
+- **Frontend React** : compile dans l'image puis est servi par FastAPI
+- **Backend FastAPI** : expose l'API et les pages front en production
 
 Les fichiers de deploiement disponibles sont :
 
 - [render.yaml](/d:/Projet estate/render.yaml:1)
 - [docker-compose.yml](/d:/Projet estate/docker-compose.yml:1)
+- [Dockerfile](/d:/Projet estate/Dockerfile:1)
 - [backend/Dockerfile](/d:/Projet estate/backend/Dockerfile:1)
 - [frontend/Dockerfile](/d:/Projet estate/frontend/Dockerfile:1)
 
