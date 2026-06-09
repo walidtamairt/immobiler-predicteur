@@ -1,0 +1,50 @@
+# Secrets and local environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Backend artifacts and local databases
+backend/ml/models/
+backend/ml/artifacts/
+backend/**/__pycache__/
+backend/*.db
+*.db
+
+# Generated data outputs
+data/processed/
+data/external/
+
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Misc
+.coverage
+coverage.xml
+htmlcov/

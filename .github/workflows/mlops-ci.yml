@@ -1,0 +1,37 @@
+name: mlops-ci
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  validate-train-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run automated tests
+        run: python -m pytest backend/tests -q
+
+      - name: Clean training and test data
+        run: python -m backend.etl.clean_data
+
+      - name: Train model
+        run: python -m backend.ml.train_model
+
+      - name: Verify model artifact and metrics
+        run: |
+          test -f backend/ml/models/xgboost_model.joblib
+          test -f backend/ml/models/metrics.json

@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: real-estate-ai-backend
+    runtime: python
+    rootDir: .
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: MODEL_PATH
+        value: backend/ml/models/xgboost_model.joblib
+      - key: MODEL_VERSION
+        value: xgboost_v1
+
+  - type: static
+    name: real-estate-ai-frontend
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: real-estate-ai-backend
+          type: web
