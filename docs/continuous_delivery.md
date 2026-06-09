@@ -91,8 +91,8 @@ Ce packaging permet :
 Le deploiement vise :
 
 - **Neon PostgreSQL** pour la persistance cloud,
-- **Render** pour le backend,
-- **Render** pour le frontend.
+- **Render** pour le backend via Docker,
+- **Render** pour le frontend via Docker.
 
 La configuration Render est documentee dans :
 

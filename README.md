@@ -55,8 +55,8 @@ npm run dev
 ## Deploiement cible
 
 - **Base** : Neon PostgreSQL
-- **Backend** : Render
-- **Frontend** : Render
+- **Backend** : Render en conteneur Docker
+- **Frontend** : Render en conteneur Docker
 
 Les fichiers de deploiement disponibles sont :
 

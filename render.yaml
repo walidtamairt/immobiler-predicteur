@@ -1,10 +1,11 @@
 services:
   - type: web
     name: real-estate-ai-backend
-    runtime: python
-    rootDir: .
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    env: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -12,12 +13,22 @@ services:
         value: backend/ml/models/xgboost_model.joblib
       - key: MODEL_VERSION
         value: xgboost_v1
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: google/gemma-4-31b-it:free
+      - key: OPENROUTER_SITE_URL
+        sync: false
+      - key: OPENROUTER_APP_NAME
+        value: Estate AI
 
-  - type: static
+  - type: web
     name: real-estate-ai-frontend
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    env: docker
+    plan: starter
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /
     envVars:
       - key: VITE_API_URL
         fromService:
