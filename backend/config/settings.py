@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     openrouter_model: str = Field(default="openrouter/auto", alias="OPENROUTER_MODEL")
     openrouter_site_url: str = Field(default="http://localhost:5173", alias="OPENROUTER_SITE_URL")
     openrouter_app_name: str = Field(default="Estate AI", alias="OPENROUTER_APP_NAME")
+    alert_email_recipient: str = Field(default="walidtamairt@gmail.com", alias="ALERT_EMAIL_RECIPIENT")
+    smtp_host: str = Field(default="", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_username: str = Field(default="", alias="SMTP_USERNAME")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_from_email: str = Field(default="", alias="SMTP_FROM_EMAIL")
+    smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -63,6 +63,7 @@ def test_market_dashboard_endpoint(client):
     assert "priceVsSurface" in data
     assert "analysis" in data
     assert "summary" in data["analysis"]
+    assert "Mortgage rates remain elevated" in data["analysis"]["externalContext"]
 
 
 def test_latest_model_metrics_endpoint(client):

@@ -83,3 +83,41 @@ class UserPrediction(Base):
     upper_bound: Mapped[float | None] = mapped_column(Float)
     model_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class ExternalMarketContext(Base):
+    __tablename__ = "external_market_context"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    source: Mapped[str | None] = mapped_column(Text)
+    country: Mapped[str | None] = mapped_column(Text)
+    indicator: Mapped[str | None] = mapped_column(Text)
+    year: Mapped[int | None] = mapped_column(Integer)
+    value: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class ScrapedMarketTrend(Base):
+    __tablename__ = "scraped_market_trends"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    city: Mapped[str | None] = mapped_column(Text)
+    average_price: Mapped[float | None] = mapped_column(Float)
+    trend: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    source_url: Mapped[str | None] = mapped_column(Text)
+    source_title: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class ExternalContextSummary(Base):
+    __tablename__ = "external_context_summaries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    summary_kind: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str | None] = mapped_column(Text)
+    summary_text: Mapped[str | None] = mapped_column(Text)
+    rows_collected: Mapped[int | None] = mapped_column(Integer)
+    average_indicator_value: Mapped[float | None] = mapped_column(Float)
+    payload_json: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-06-13T21:10:41.480453+00:00",
+  "severity": "critical",
+  "channel": "simulated-webhook",
+  "message": "Model performance drift detected during training.",
+  "alerts": [
+    "MAE increased by more than 15% compared to historical baseline: 6215.6816 vs 1000.0000"
+  ],
+  "metrics": {
+    "model_name": "xgboost",
+    "model_version": "test-metrics-v1",
+    "mae": 6215.681640625,
+    "rmse": 6547.811848243656,
+    "r2": 0.9813084006309509,
+    "train_rows": 40,
+    "feature_count": 12
+  }
+}

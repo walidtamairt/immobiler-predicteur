@@ -9,7 +9,15 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models import BatchPrediction, ModelMetric, PropertyTrain, UserPrediction
+from backend.app.models import (
+    BatchPrediction,
+    ExternalContextSummary,
+    ExternalMarketContext,
+    ModelMetric,
+    PropertyTrain,
+    ScrapedMarketTrend,
+    UserPrediction,
+)
 from backend.app.schemas import ModelMetricsHistoryResponse, ModelMetricsResponse
 from backend.config.settings import get_settings
 from backend.ml.predict_batch import load_model
@@ -102,6 +110,12 @@ def build_market_summary(db: Session) -> str:
         PropertyTrain.sale_month,
         func.avg(PropertyTrain.sale_price),
     ).group_by(PropertyTrain.sale_month).order_by(PropertyTrain.sale_month).limit(6).all()
+    external_indicators = (
+        db.query(ExternalMarketContext)
+        .order_by(ExternalMarketContext.year.desc(), ExternalMarketContext.id.desc())
+        .limit(3)
+        .all()
+    )
 
     lines = [
         "Indicateurs globaux :",
@@ -130,40 +144,57 @@ def build_market_summary(db: Session) -> str:
     for month, month_price in months:
         lines.append(f"- Mois {month} : {float(month_price or 0):.2f}")
 
-    external_summary_path = Path("data/external/external_market_summary.json")
-    if external_summary_path.exists():
-        try:
-            external_summary = json.loads(external_summary_path.read_text(encoding="utf-8"))
-            if external_summary.get("summary_text"):
-                lines.append("")
-                lines.append("Contexte externe :")
-                lines.append(f"- {external_summary['summary_text']}")
-        except json.JSONDecodeError:
-            pass
+    if external_indicators:
+        lines.append("")
+        lines.append("Indicateurs externes charges dans Neon :")
+        for row in external_indicators:
+            lines.append(f"- {row.indicator} ({row.year}) : {float(row.value or 0):.2f}")
+
+    external_context = load_external_summary_text(db)
+    if external_context:
+        lines.append("")
+        lines.append("Contexte externe :")
+        lines.append(f"- {external_context}")
+
+    scraped_examples = db.query(ScrapedMarketTrend).order_by(ScrapedMarketTrend.created_at.desc()).limit(3).all()
+    if scraped_examples:
+        lines.append("")
+        lines.append("Tendances scrappees :")
+        for row in scraped_examples:
+            description = row.description or row.trend or "Signal HTML"
+            lines.append(f"- {row.city or 'Unknown'} : {description}")
 
     return "\n".join(lines)
 
 
-def load_external_summary_text() -> str | None:
+def load_external_summary_text(db: Session) -> str | None:
+    summaries = (
+        db.query(ExternalContextSummary)
+        .order_by(ExternalContextSummary.created_at.desc())
+        .all()
+    )
+    if summaries:
+        texts = [summary.summary_text for summary in summaries if summary.summary_text]
+        if texts:
+            return " ".join(texts)
+
     external_summary_path = Path("data/external/external_market_summary.json")
-    if not external_summary_path.exists():
-        return None
-
-    try:
-        external_summary = json.loads(external_summary_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-
-    return external_summary.get("summary_text")
+    if external_summary_path.exists():
+        try:
+            external_summary = json.loads(external_summary_path.read_text(encoding="utf-8"))
+            return external_summary.get("summary_text")
+        except json.JSONDecodeError:
+            return None
+    return None
 
 
-def build_market_analysis(rows: list[PropertyTrain], price_per_m2: list[float]) -> dict:
+def build_market_analysis(rows: list[PropertyTrain], price_per_m2: list[float], external_context: str | None) -> dict:
     if not rows:
         return {
             "title": "Analyse du marche",
             "summary": "Aucune donnee ne correspond aux filtres selectionnes pour le moment.",
             "highlights": [],
-            "externalContext": load_external_summary_text(),
+            "externalContext": external_context,
         }
 
     avg_price = sum(float(row.sale_price or 0) for row in rows) / len(rows)
@@ -248,7 +279,7 @@ def build_market_analysis(rows: list[PropertyTrain], price_per_m2: list[float]) 
         "title": "Analyse du marche",
         "summary": summary,
         "highlights": highlights,
-        "externalContext": load_external_summary_text(),
+        "externalContext": external_context,
     }
 
 
@@ -314,6 +345,7 @@ def market_dashboard(
     property_age_max: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> dict:
+    external_context = load_external_summary_text(db)
     rows = build_filtered_query(
         db,
         neighborhood=neighborhood,
@@ -333,7 +365,7 @@ def market_dashboard(
         for row in rows
         if row.sale_price is not None and row.gr_liv_area not in (None, 0)
     ]
-    analysis = build_market_analysis(rows, price_per_m2)
+    analysis = build_market_analysis(rows, price_per_m2, external_context)
 
     by_neighborhood_map = {}
     by_quality_map = {}

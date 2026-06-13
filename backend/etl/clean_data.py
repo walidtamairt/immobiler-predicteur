@@ -138,12 +138,26 @@ def enforce_row_limit(df: pd.DataFrame, max_rows: int = 110000, random_state: in
     return df.sample(n=max_rows, random_state=random_state).reset_index(drop=True)
 
 
+def export_data_lake_snapshot(df: pd.DataFrame, dataset_name: str, layer: str) -> Path:
+    output_dir = Path("data/lake") / layer
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{dataset_name}.parquet.gzip"
+    df.to_parquet(output_path, index=False, compression="gzip")
+    logger.info("Saved data lake snapshot to %s", output_path)
+    return output_path
+
+
 def clean_and_save(train_path: str | Path, test_path: str | Path) -> tuple[Path, Path]:
     train_df = ingest_csv(train_path)
     test_df = ingest_csv(test_path)
 
     clean_train = enforce_row_limit(clean_dataframe(train_df, is_train=True))
     clean_test = enforce_row_limit(clean_dataframe(test_df, is_train=False))
+
+    export_data_lake_snapshot(train_df, "train_raw", "raw")
+    export_data_lake_snapshot(test_df, "test_raw", "raw")
+    export_data_lake_snapshot(clean_train, "train_clean", "processed")
+    export_data_lake_snapshot(clean_test, "test_clean", "processed")
 
     output_dir = Path("data/processed")
     output_dir.mkdir(parents=True, exist_ok=True)

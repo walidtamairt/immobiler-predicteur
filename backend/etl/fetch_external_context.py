@@ -8,6 +8,8 @@ from typing import Any
 import pandas as pd
 import requests
 
+from backend.etl.load_to_neon import load_external_market_context, load_external_summary
+from backend.etl.scrape_market_trends import scrape_market_trends
 from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -160,6 +162,12 @@ def _build_summary(df: pd.DataFrame, series_id: str) -> dict[str, Any]:
 def fetch_external_context() -> tuple[Path, Path]:
     df, series_id = _fetch_best_dataframe()
     summary = _build_summary(df, series_id)
+    scraping_summary = None
+
+    try:
+        _, _, scraping_summary = scrape_market_trends()
+    except Exception as exc:
+        logger.warning("Skipping HTML scraping enrichment because source is unavailable: %s", exc)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -168,7 +176,22 @@ def fetch_external_context() -> tuple[Path, Path]:
 
     df.to_csv(csv_path, index=False)
     summary_path.write_text(
-        json.dumps(summary, indent=2, ensure_ascii=False),
+        json.dumps(
+            {
+                **summary,
+                "html_scraping": scraping_summary,
+                "summary_text": " ".join(
+                    part
+                    for part in [
+                        summary.get("summary_text"),
+                        scraping_summary.get("summary_text") if scraping_summary else None,
+                    ]
+                    if part
+                ),
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -178,6 +201,12 @@ def fetch_external_context() -> tuple[Path, Path]:
         csv_path,
         summary_path,
     )
+
+    try:
+        load_external_market_context(csv_path)
+        load_external_summary(summary_path, summary_kind="external_api", source="FRED API")
+    except Exception as exc:
+        logger.warning("External context was saved locally but not loaded into Neon: %s", exc)
 
     return csv_path, summary_path
 

@@ -1,0 +1,130 @@
+name: ci-cd
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+env:
+  DATABASE_URL: sqlite:///./ci_real_estate.db
+  MODEL_PATH: backend/ml/models/ci_model.joblib
+  MODEL_VERSION: ci-v1
+  OPENROUTER_API_KEY: ""
+
+jobs:
+  backend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Prepare ETL assets
+        run: |
+          python -m backend.etl.clean_data
+          python -m backend.etl.scrape_market_trends
+
+      - name: Validate Pydantic schemas
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from backend.app.schemas import ModelMetricsHistoryResponse, ModelMetricsResponse
+
+          item = ModelMetricsResponse(
+              model_name="xgboost",
+              model_version="ci-v1",
+              mae=1234.5,
+              rmse=2345.6,
+              r2=0.91,
+              train_rows=100,
+              feature_count=12,
+              created_at=datetime.utcnow(),
+          )
+          payload = ModelMetricsHistoryResponse(items=[item])
+          assert payload.items[0].model_version == "ci-v1"
+          print("Pydantic schema validation passed.")
+          PY
+
+      - name: Run automated tests
+        run: |
+          mkdir -p artifacts
+          python -m pytest backend/tests tests -q --junitxml=artifacts/pytest-report.xml
+
+      - name: Train model and generate monitoring report
+        run: |
+          python -m backend.ml.train_model
+          test -f backend/ml/models/xgboost_model.joblib
+          test -f backend/ml/models/metrics.json
+          test -f backend/ml/models/training_monitoring_report.json
+
+      - name: Build CI summary report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          metrics = json.loads(Path("backend/ml/models/metrics.json").read_text(encoding="utf-8"))
+          report = Path("artifacts/quality-report.md")
+          report.write_text(
+              "\n".join(
+                  [
+                      "# CI Quality Report",
+                      "",
+                      f"- Model version: {metrics.get('model_version')}",
+                      f"- MAE: {metrics.get('mae')}",
+                      f"- RMSE: {metrics.get('rmse')}",
+                      f"- R2: {metrics.get('r2')}",
+                      f"- Alerts: {len(metrics.get('alerts', []))}",
+                  ]
+              ),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-quality-artifacts
+          path: |
+            artifacts/pytest-report.xml
+            artifacts/quality-report.md
+            backend/ml/models/metrics.json
+            backend/ml/models/training_monitoring_report.json
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend application
+        run: npm run build
+        working-directory: frontend
+
+  deploy-render:
+    runs-on: ubuntu-latest
+    needs: [backend-quality, frontend-build]
+    if: github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK_URL != ''
+    steps:
+      - name: Trigger Render deployment
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

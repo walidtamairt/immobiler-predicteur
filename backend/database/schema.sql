@@ -68,3 +68,35 @@ CREATE TABLE IF NOT EXISTS user_predictions (
     model_version TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS external_market_context (
+    id SERIAL PRIMARY KEY,
+    source TEXT,
+    country TEXT,
+    indicator TEXT,
+    year INT,
+    value FLOAT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS scraped_market_trends (
+    id SERIAL PRIMARY KEY,
+    city TEXT,
+    average_price FLOAT,
+    trend TEXT,
+    description TEXT,
+    source_url TEXT,
+    source_title TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS external_context_summaries (
+    id SERIAL PRIMARY KEY,
+    summary_kind TEXT,
+    source TEXT,
+    summary_text TEXT,
+    rows_collected INT,
+    average_indicator_value FLOAT,
+    payload_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
