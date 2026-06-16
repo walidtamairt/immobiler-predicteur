@@ -4,11 +4,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 from pathlib import Path
 
+from backend.app import database as database_module
 from backend.app.api import router
-from backend.app.database import Base, engine
+from backend.app.database import Base, ensure_database_ready
 
 try:
-    Base.metadata.create_all(bind=engine)
+    ensure_database_ready()
+    Base.metadata.create_all(bind=database_module.engine)
 except SQLAlchemyError:
     # Allow the API to boot even if Neon is temporarily unavailable.
     pass

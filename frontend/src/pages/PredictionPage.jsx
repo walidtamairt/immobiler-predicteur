@@ -5,7 +5,9 @@ import PredictionHistory from "../components/prediction/PredictionHistory";
 import ModelHealthSection from "../components/prediction/ModelHealthSection";
 import PredictionResult from "../components/prediction/PredictionResult";
 import {
+  getErrorMessage,
   getLatestModelMetrics,
+  getMarketFilters,
   getMarketDashboard,
   getModelMetricsHistory,
   getPredictionHistory,
@@ -18,13 +20,16 @@ export default function PredictionPage() {
   const [marketKpis, setMarketKpis] = useState(null);
   const [modelMetrics, setModelMetrics] = useState(null);
   const [modelMetricsHistory, setModelMetricsHistory] = useState([]);
+  const [neighborhoodOptions, setNeighborhoodOptions] = useState([]);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    getPredictionHistory().then(setHistory).catch(() => undefined);
-    getMarketDashboard().then((dashboard) => setMarketKpis(dashboard.kpis)).catch(() => undefined);
-    getLatestModelMetrics().then(setModelMetrics).catch(() => undefined);
-    getModelMetricsHistory().then((payload) => setModelMetricsHistory(payload.items || [])).catch(() => undefined);
+    getPredictionHistory().then(setHistory).catch((requestError) => setLoadError(getErrorMessage(requestError)));
+    getMarketDashboard().then((dashboard) => setMarketKpis(dashboard.kpis)).catch((requestError) => setLoadError(getErrorMessage(requestError)));
+    getMarketFilters().then((payload) => setNeighborhoodOptions(payload.neighborhoods || [])).catch((requestError) => setLoadError(getErrorMessage(requestError)));
+    getLatestModelMetrics().then(setModelMetrics).catch((requestError) => setLoadError(getErrorMessage(requestError)));
+    getModelMetricsHistory().then((payload) => setModelMetricsHistory(payload.items || [])).catch((requestError) => setLoadError(getErrorMessage(requestError)));
   }, []);
 
   async function handlePredict(payload) {
@@ -44,8 +49,9 @@ export default function PredictionPage() {
       title="Estimer un bien"
       subtitle="Renseignez les caracteristiques d'un bien pour obtenir une estimation exploitable, une fourchette de prix et la sante du modele."
     >
+      {loadError ? <p className="error">{loadError}</p> : null}
       <div className="prediction-layout">
-        <PredictionForm onPredict={handlePredict} error={error} />
+        <PredictionForm onPredict={handlePredict} error={error} neighborhoodOptions={neighborhoodOptions} />
         <PredictionResult result={result} marketKpis={marketKpis} />
       </div>
       <ModelHealthSection latest={modelMetrics} history={modelMetricsHistory} />

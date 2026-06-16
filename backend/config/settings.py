@@ -7,8 +7,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str = Field(default="", alias="DATABASE_URL")
+    database_fallback_url: str = Field(default="", alias="DATABASE_FALLBACK_URL")
+    database_connect_timeout: int = Field(default=5, alias="DATABASE_CONNECT_TIMEOUT")
     model_version: str = Field(default="xgboost_v1", alias="MODEL_VERSION")
     model_path: str = Field(default="backend/ml/models/xgboost_model.joblib", alias="MODEL_PATH")
+    api_key: str = Field(default="estate-ai-dev-key", alias="API_KEY")
+    demo_username: str = Field(default="demo-user", alias="DEMO_USERNAME")
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
     openrouter_model: str = Field(default="openrouter/auto", alias="OPENROUTER_MODEL")
     openrouter_site_url: str = Field(default="http://localhost:5173", alias="OPENROUTER_SITE_URL")

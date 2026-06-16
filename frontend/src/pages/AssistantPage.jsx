@@ -3,7 +3,7 @@ import ChatWindow from "../components/assistant/ChatWindow";
 import QuickQuestions from "../components/assistant/QuickQuestions";
 import KpiCard from "../components/common/KpiCard";
 import PageContainer from "../components/layout/PageContainer";
-import { getMarketDashboard, sendChatMessage } from "../services/api";
+import { getErrorMessage, getMarketDashboard, sendChatMessage } from "../services/api";
 import { formatPrice } from "../utils/display";
 
 export default function AssistantPage() {
@@ -16,9 +16,15 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("pret");
   const [marketKpis, setMarketKpis] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getMarketDashboard().then((dashboard) => setMarketKpis(dashboard.kpis)).catch(() => undefined);
+    getMarketDashboard()
+      .then((dashboard) => {
+        setError("");
+        setMarketKpis(dashboard.kpis);
+      })
+      .catch((requestError) => setError(getErrorMessage(requestError)));
   }, []);
 
   async function submitMessage(content) {
@@ -51,6 +57,7 @@ export default function AssistantPage() {
     >
       <div className="assistant-layout">
         <aside className="assistant-sidebar">
+          {error ? <p className="error">{error}</p> : null}
           <QuickQuestions onSelect={submitMessage} />
           <section className="chart-card assistant-support-card">
             <div className="card-header">

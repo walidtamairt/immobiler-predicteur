@@ -4,10 +4,11 @@ from statistics import median
 
 import httpx
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from backend.app.auth import AuthenticatedPrincipal, require_api_key
 from backend.app.database import get_db
 from backend.app.models import (
     BatchPrediction,
@@ -328,7 +329,10 @@ def root() -> dict:
 
 
 @router.get("/market-data")
-def market_data(db: Session = Depends(get_db)) -> list[dict]:
+def market_data(
+    db: Session = Depends(get_db),
+    _: AuthenticatedPrincipal = Security(require_api_key),
+) -> list[dict]:
     rows = db.query(PropertyTrain).all()
     return [serialize_property(row) for row in rows]
 
@@ -531,7 +535,10 @@ def location_analysis(db: Session = Depends(get_db)) -> list[dict]:
 
 
 @router.get("/batch-predictions")
-def batch_predictions(db: Session = Depends(get_db)) -> list[dict]:
+def batch_predictions(
+    db: Session = Depends(get_db),
+    _: AuthenticatedPrincipal = Security(require_api_key),
+) -> list[dict]:
     rows = db.query(BatchPrediction).order_by(BatchPrediction.id.desc()).limit(200).all()
     return [
         {
@@ -556,7 +563,10 @@ def batch_predictions(db: Session = Depends(get_db)) -> list[dict]:
 
 
 @router.get("/prediction-history")
-def prediction_history(db: Session = Depends(get_db)) -> list[dict]:
+def prediction_history(
+    db: Session = Depends(get_db),
+    _: AuthenticatedPrincipal = Security(require_api_key),
+) -> list[dict]:
     rows = db.query(UserPrediction).order_by(UserPrediction.created_at.desc()).limit(20).all()
     return [
         {
@@ -621,7 +631,11 @@ def model_metrics_history(db: Session = Depends(get_db)) -> ModelMetricsHistoryR
 
 
 @router.post("/predict")
-def predict(payload: dict, db: Session = Depends(get_db)) -> dict:
+def predict(
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: AuthenticatedPrincipal = Security(require_api_key),
+) -> dict:
     bundle = load_model()
     model = bundle["model"]
     missing = [feature for feature in FEATURES if feature not in payload]

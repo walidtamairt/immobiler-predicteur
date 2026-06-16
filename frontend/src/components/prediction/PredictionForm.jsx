@@ -17,7 +17,7 @@ const initialForm = {
   property_age: 10,
 };
 
-export default function PredictionForm({ onPredict, error }) {
+export default function PredictionForm({ onPredict, error, neighborhoodOptions = [] }) {
   const [form, setForm] = useState(initialForm);
 
   function submit(event) {
@@ -48,12 +48,26 @@ export default function PredictionForm({ onPredict, error }) {
         {Object.entries(form).map(([key, value]) => (
           <label key={key} className="form-field">
             <span>{fieldLabel(key)}</span>
-            <input
-              type={isNumericField(key) ? "number" : "text"}
-              placeholder={fieldPlaceholder(key)}
-              value={value}
-              onChange={(event) => setForm({ ...form, [key]: event.target.value })}
-            />
+            {key === "Neighborhood" ? (
+              <select
+                value={value}
+                onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+              >
+                {neighborhoodOptions.length ? null : <option value={value}>{value}</option>}
+                {neighborhoodOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={isNumericField(key) ? "number" : "text"}
+                placeholder={fieldPlaceholder(key)}
+                value={value}
+                onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+              />
+            )}
           </label>
         ))}
       </div>

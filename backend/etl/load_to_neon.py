@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import text
 
+from backend.etl.big_data_duckdb import run_big_data_pipeline
 from backend.database.db import SessionLocal, engine
 from backend.utils.logger import get_logger
 
@@ -45,10 +46,12 @@ def load_clean_data(csv_path: str | Path = "data/processed/train_clean.csv", bat
                     """
                     INSERT INTO properties_train
                     (gr_liv_area, lot_area, overall_qual, overall_cond, bedroom_abv_gr, full_bath,
-                     garage_cars, garage_area, neighborhood, house_style, sale_month, property_age, sale_price)
+                     garage_cars, garage_area, neighborhood, house_style, sale_month, property_age, sale_price,
+                     created_at)
                     VALUES
                     (:GrLivArea, :LotArea, :OverallQual, :OverallCond, :BedroomAbvGr, :FullBath,
-                     :GarageCars, :GarageArea, :Neighborhood, :HouseStyle, :MoSold, :property_age, :SalePrice)
+                     :GarageCars, :GarageArea, :Neighborhood, :HouseStyle, :MoSold, :property_age, :SalePrice,
+                     CURRENT_TIMESTAMP)
                     """
                 ),
                 chunk,
@@ -91,9 +94,9 @@ def load_external_market_context(csv_path: str | Path = "data/external/external_
             "external_market_context",
             """
             INSERT INTO external_market_context
-            (source, country, indicator, year, value)
+            (source, country, indicator, year, value, created_at)
             VALUES
-            (:source, :country, :indicator, :year, :value)
+            (:source, :country, :indicator, :year, :value, CURRENT_TIMESTAMP)
             """,
             [
                 {
@@ -132,9 +135,9 @@ def load_scraped_market_trends(csv_path: str | Path = "data/external/scraped_mar
             "scraped_market_trends",
             """
             INSERT INTO scraped_market_trends
-            (city, average_price, trend, description, source_url, source_title)
+            (city, average_price, trend, description, source_url, source_title, created_at)
             VALUES
-            (:city, :average_price, :trend, :description, :source_url, :source_title)
+            (:city, :average_price, :trend, :description, :source_url, :source_title, CURRENT_TIMESTAMP)
             """,
             [
                 {
@@ -176,9 +179,9 @@ def load_external_summary(summary_path: str | Path, summary_kind: str, source: s
             text(
                 """
                 INSERT INTO external_context_summaries
-                (summary_kind, source, summary_text, rows_collected, average_indicator_value, payload_json)
+                (summary_kind, source, summary_text, rows_collected, average_indicator_value, payload_json, created_at)
                 VALUES
-                (:summary_kind, :source, :summary_text, :rows_collected, :average_indicator_value, :payload_json)
+                (:summary_kind, :source, :summary_text, :rows_collected, :average_indicator_value, :payload_json, CURRENT_TIMESTAMP)
                 """
             ),
             {
@@ -202,6 +205,10 @@ def load_external_summary(summary_path: str | Path, summary_kind: str, source: s
 
 def load_all_project_data() -> dict[str, int]:
     results = {"properties_train": load_clean_data()}
+
+    duckdb_outputs = run_big_data_pipeline()
+    results["duckdb_big_data"] = 1
+    results["duckdb_big_data_artifacts"] = len(duckdb_outputs)
 
     external_context_path = Path("data/external/external_market_context.csv")
     if external_context_path.exists():

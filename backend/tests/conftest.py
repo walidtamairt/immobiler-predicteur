@@ -10,6 +10,7 @@ from sqlalchemy import text
 os.environ["DATABASE_URL"] = "sqlite:///./test_real_estate.db"
 os.environ["MODEL_PATH"] = "backend/ml/models/test_model.joblib"
 os.environ["MODEL_VERSION"] = "test-v1"
+os.environ["API_KEY"] = "test-api-key"
 os.environ["OPENROUTER_API_KEY"] = ""
 
 from backend.app.database import Base, SessionLocal, engine
@@ -135,4 +136,4 @@ def tmp_path():
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    return TestClient(app, headers={"X-API-Key": os.environ["API_KEY"]})

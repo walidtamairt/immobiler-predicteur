@@ -8,6 +8,7 @@ import PriceVsSurfaceChart from "../components/market/PriceVsSurfaceChart";
 import SeasonalityChart from "../components/market/SeasonalityChart";
 import PageContainer from "../components/layout/PageContainer";
 import {
+  getErrorMessage,
   getMarketDashboard,
   getMarketFilters,
 } from "../services/api";
@@ -43,14 +44,18 @@ export default function MarketPage() {
     seasonality: [],
     analysis: null,
   });
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getMarketFilters().then(setFilterOptions).catch(() => undefined);
+    getMarketFilters()
+      .then(setFilterOptions)
+      .catch((requestError) => setError(getErrorMessage(requestError)));
   }, []);
 
   useEffect(() => {
     getMarketDashboard(filters)
       .then((dashboard) => {
+        setError("");
         setState({
           kpis: dashboard.kpis,
           byNeighborhood: dashboard.byNeighborhood,
@@ -61,7 +66,7 @@ export default function MarketPage() {
           analysis: dashboard.analysis,
         });
       })
-      .catch(() => undefined);
+      .catch((requestError) => setError(getErrorMessage(requestError)));
   }, [filters]);
 
   return (
@@ -72,6 +77,7 @@ export default function MarketPage() {
       <div className="market-page">
         <MarketFilters filters={filters} setFilters={setFilters} filterOptions={filterOptions} />
         <div className="market-content">
+          {error ? <p className="error">{error}</p> : null}
           <KpiCards kpis={state.kpis} />
           <div className="chart-grid">
             <PriceByNeighborhoodChart data={state.byNeighborhood} wide />

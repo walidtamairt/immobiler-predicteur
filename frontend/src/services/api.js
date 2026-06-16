@@ -1,10 +1,32 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+function resolveApiBaseUrl() {
+  const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  if (typeof window === "undefined") {
+    return "http://localhost:8000";
+  }
+
+  const { hostname, port } = window.location;
+  const isLocalFrontendDevServer =
+    hostname === "localhost" &&
+    (port === "5173" || port === "4173");
+
+  return isLocalFrontendDevServer ? "http://localhost:8000" : "";
+}
+
+const API_URL = resolveApiBaseUrl();
+const API_KEY = import.meta.env.VITE_API_KEY?.trim();
 
 const http = axios.create({
   baseURL: API_URL,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+  },
 });
 
 function buildQueryString(filters = {}) {
@@ -29,6 +51,18 @@ async function get(path) {
 async function post(path, payload) {
   const response = await http.post(path, payload);
   return response.data;
+}
+
+export function getErrorMessage(error, fallbackMessage = "Impossible de recuperer les donnees.") {
+  if (error?.response?.status === 401) {
+    return "Acces refuse. Configurez VITE_API_KEY pour appeler les routes protegees.";
+  }
+
+  if (error?.message) {
+    return error.message;
+  }
+
+  return fallbackMessage;
 }
 
 export async function getMarketDashboard(filters = {}) {
