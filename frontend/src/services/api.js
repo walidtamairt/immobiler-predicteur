@@ -20,6 +20,8 @@ function resolveApiBaseUrl() {
 
 const API_URL = resolveApiBaseUrl();
 const API_KEY = import.meta.env.VITE_API_KEY?.trim();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const cacheStore = new Map();
 
 const http = axios.create({
   baseURL: API_URL,
@@ -44,7 +46,13 @@ function buildQueryString(filters = {}) {
 }
 
 async function get(path) {
+  const cached = cacheStore.get(path);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
   const response = await http.get(path);
+  cacheStore.set(path, { value: response.data, expiresAt: Date.now() + CACHE_TTL_MS });
   return response.data;
 }
 

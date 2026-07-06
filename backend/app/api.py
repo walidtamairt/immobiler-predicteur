@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from statistics import median
 
@@ -26,6 +27,8 @@ from backend.ml.train_model import FEATURES
 
 router = APIRouter(prefix="/api")
 settings = get_settings()
+MARKET_SUMMARY_CACHE: dict[str, object] = {"value": None, "expires_at": 0.0}
+MARKET_SUMMARY_TTL_SECONDS = 300
 
 
 def build_filtered_query(
@@ -79,6 +82,12 @@ def serialize_property(row: PropertyTrain) -> dict:
 
 
 def build_market_summary(db: Session) -> str:
+    now = time.time()
+    cached_value = MARKET_SUMMARY_CACHE.get("value")
+    cached_expires_at = float(MARKET_SUMMARY_CACHE.get("expires_at") or 0)
+    if cached_value and cached_expires_at > now:
+        return str(cached_value)
+
     properties = db.query(PropertyTrain).all()
     if not properties:
         return "Aucune donnee de marche n'est disponible dans Neon pour le moment."
@@ -165,7 +174,10 @@ def build_market_summary(db: Session) -> str:
             description = row.description or row.trend or "Signal HTML"
             lines.append(f"- {row.city or 'Unknown'} : {description}")
 
-    return "\n".join(lines)
+    summary = "\n".join(lines)
+    MARKET_SUMMARY_CACHE["value"] = summary
+    MARKET_SUMMARY_CACHE["expires_at"] = now + MARKET_SUMMARY_TTL_SECONDS
+    return summary
 
 
 def load_external_summary_text(db: Session) -> str | None:
@@ -594,7 +606,10 @@ def prediction_history(
 
 
 @router.get("/model-metrics/latest", response_model=ModelMetricsResponse)
-def latest_model_metrics(db: Session = Depends(get_db)) -> ModelMetricsResponse:
+def latest_model_metrics(
+    db: Session = Depends(get_db),
+    _: AuthenticatedPrincipal = Security(require_api_key),
+) -> ModelMetricsResponse:
     row = db.query(ModelMetric).order_by(ModelMetric.created_at.desc()).first()
     if not row:
         raise HTTPException(status_code=404, detail="No model metrics found")
@@ -611,7 +626,10 @@ def latest_model_metrics(db: Session = Depends(get_db)) -> ModelMetricsResponse:
 
 
 @router.get("/model-metrics/history", response_model=ModelMetricsHistoryResponse)
-def model_metrics_history(db: Session = Depends(get_db)) -> ModelMetricsHistoryResponse:
+def model_metrics_history(
+    db: Session = Depends(get_db),
+    _: AuthenticatedPrincipal = Security(require_api_key),
+) -> ModelMetricsHistoryResponse:
     rows = db.query(ModelMetric).order_by(ModelMetric.created_at.asc()).all()
     return ModelMetricsHistoryResponse(
         items=[
@@ -703,5 +721,14 @@ def chat(payload: dict, db: Session = Depends(get_db)) -> dict:
     try:
         answer = call_openrouter(model_messages)
         return {"answer": answer, "mode": "openrouter"}
+    except httpx.HTTPStatusError as exc:
+        response_text = exc.response.text[:500] if exc.response is not None and exc.response.text else ""
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Erreur OpenRouter {exc.response.status_code if exc.response else 'unknown'}: "
+                f"{response_text or str(exc)}"
+            ),
+        ) from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Erreur OpenRouter : {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"Erreur reseau OpenRouter : {exc}") from exc
