@@ -18,15 +18,18 @@ def test_filters_endpoint(client):
     assert "CollgCr" in data["neighborhoods"]
 
 
-def test_chat_endpoint_local_mode(client):
+def test_chat_endpoint_gemini_mode(client, monkeypatch):
+    from backend.app import api
+
+    monkeypatch.setattr(api, "call_gemini_chat", lambda messages, market_context: "Mocked Gemini answer")
     response = client.post(
         "/api/chat",
         json={"messages": [{"role": "user", "content": "Quel quartier semble le plus cher ?"}]},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["mode"] == "local"
-    assert "answer" in data
+    assert data["mode"] == "gemini"
+    assert data["answer"] == "Mocked Gemini answer"
 
 
 def test_market_data_endpoint(client):
@@ -86,21 +89,20 @@ def test_model_metrics_history_endpoint(client):
     assert "items" in data
 
 
-def test_model_metrics_endpoints_require_api_key():
+def test_model_metrics_endpoints_are_public_for_prediction_page():
     unauthenticated_client = TestClient(app)
 
     latest_response = unauthenticated_client.get("/api/model-metrics/latest")
     history_response = unauthenticated_client.get("/api/model-metrics/history")
 
-    assert latest_response.status_code == 401
-    assert history_response.status_code == 401
+    assert latest_response.status_code == 200
+    assert history_response.status_code == 200
 
 
 def test_chat_endpoint_gemini_mock(client, monkeypatch):
     from backend.app import api
 
-    monkeypatch.setattr(api.settings, "gemini_api_key", "test-key")
-    monkeypatch.setattr(api, "call_gemini", lambda messages: "Mocked Gemini answer")
+    monkeypatch.setattr(api, "call_gemini_chat", lambda messages, market_context: "Mocked Gemini answer")
 
     response = client.post(
         "/api/chat",

@@ -12,7 +12,7 @@ os.environ["MODEL_PATH"] = "backend/ml/models/test_model.joblib"
 os.environ["MODEL_VERSION"] = "test-v1"
 os.environ["API_KEY"] = "test-api-key"
 os.environ["OPENROUTER_API_KEY"] = ""
-os.environ["GEMINI_API_KEY"] = ""
+os.environ["GEMINI_API_KEY"] = "test-gemini-key"
 
 from backend.app.database import Base, SessionLocal, engine
 from backend.app.main import app

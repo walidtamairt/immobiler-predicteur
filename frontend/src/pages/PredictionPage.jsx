@@ -23,9 +23,9 @@ export default function PredictionPage() {
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    getPredictionHistory().then(setHistory).catch((requestError) => setLoadError(getErrorMessage(requestError)));
     getMarketDashboard().then((dashboard) => setMarketKpis(dashboard.kpis)).catch((requestError) => setLoadError(getErrorMessage(requestError)));
     getMarketFilters().then((payload) => setNeighborhoodOptions(payload.neighborhoods || [])).catch((requestError) => setLoadError(getErrorMessage(requestError)));
+    getPredictionHistory().then(setHistory).catch((requestError) => setLoadError(getErrorMessage(requestError)));
     getLatestModelMetrics().then(setModelMetrics).catch((requestError) => setLoadError(getErrorMessage(requestError)));
   }, []);
 

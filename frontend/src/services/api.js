@@ -19,7 +19,6 @@ function resolveApiBaseUrl() {
 }
 
 const API_URL = resolveApiBaseUrl();
-const API_KEY = import.meta.env.VITE_API_KEY?.trim();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cacheStore = new Map();
 
@@ -27,7 +26,6 @@ const http = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
-    ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
   },
 });
 
@@ -63,7 +61,7 @@ async function post(path, payload) {
 
 export function getErrorMessage(error, fallbackMessage = "Impossible de recuperer les donnees.") {
   if (error?.response?.status === 401) {
-    return "Acces refuse. Configurez VITE_API_KEY pour appeler les routes protegees.";
+    return "Acces refuse. La route protegee a refuse la requete.";
   }
 
   if (error?.message) {

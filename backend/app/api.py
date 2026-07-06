@@ -3,13 +3,13 @@ import time
 from pathlib import Path
 from statistics import median
 
-import httpx
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.auth import AuthenticatedPrincipal, require_api_key
+from backend.app.chat_service import call_gemini_chat
 from backend.app.database import get_db
 from backend.app.models import (
     BatchPrediction,
@@ -296,58 +296,6 @@ def build_market_analysis(rows: list[PropertyTrain], price_per_m2: list[float], 
     }
 
 
-def build_local_chat_answer(question: str, market_context: str) -> str:
-    return (
-        "Assistant IA en mode local.\n\n"
-        "La cle Gemini n'est pas configuree, donc je ne peux pas appeler un modele distant pour le moment.\n"
-        "Voici le contexte marche disponible depuis Neon pour t'aider :\n\n"
-        f"{market_context}\n\n"
-        f"Question recue : {question}\n"
-        "Ajoute GEMINI_API_KEY dans .env pour obtenir une vraie reponse IA contextualisee."
-    )
-
-
-def call_gemini(messages: list[dict]) -> str:
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": settings.gemini_api_key,
-    }
-    contents = [
-        {
-            "role": message["role"],
-            "parts": [{"text": message["content"]}],
-        }
-        for message in messages
-        if message.get("role") in {"user", "assistant"}
-        and message.get("content")
-    ]
-    payload = {
-        "contents": contents,
-        "systemInstruction": {
-            "parts": [{"text": "Tu es un assistant d'analyse du marche immobilier. Reponds en texte brut, sans Markdown, sans titres avec #, sans gras."}]
-        },
-        "generationConfig": {"temperature": 0.3},
-    }
-    base_url = "https://generativelanguage.googleapis.com/v1beta"
-    model = settings.gemini_model.strip()
-    response = httpx.post(
-        f"{base_url}/models/{model}:generateContent",
-        headers=headers,
-        json=payload,
-        timeout=60.0,
-    )
-    response.raise_for_status()
-    data = response.json()
-    candidates = data.get("candidates") or []
-    if not candidates:
-        raise ValueError("No Gemini candidates returned.")
-    parts = candidates[0].get("content", {}).get("parts", [])
-    text = "".join(part.get("text", "") for part in parts if isinstance(part, dict))
-    if not text.strip():
-        raise ValueError("Empty Gemini response.")
-    return text
-
-
 def validate_prediction_payload(payload: dict) -> dict:
     missing = [feature for feature in FEATURES if feature not in payload]
     if missing:
@@ -610,7 +558,6 @@ def location_analysis(db: Session = Depends(get_db)) -> list[dict]:
 @router.get("/batch-predictions")
 def batch_predictions(
     db: Session = Depends(get_db),
-    _: AuthenticatedPrincipal = Security(require_api_key),
 ) -> list[dict]:
     rows = db.query(BatchPrediction).order_by(BatchPrediction.id.desc()).limit(200).all()
     return [
@@ -638,7 +585,6 @@ def batch_predictions(
 @router.get("/prediction-history")
 def prediction_history(
     db: Session = Depends(get_db),
-    _: AuthenticatedPrincipal = Security(require_api_key),
 ) -> list[dict]:
     rows = db.query(UserPrediction).order_by(UserPrediction.created_at.desc()).limit(20).all()
     return [
@@ -669,7 +615,6 @@ def prediction_history(
 @router.get("/model-metrics/latest", response_model=ModelMetricsResponse)
 def latest_model_metrics(
     db: Session = Depends(get_db),
-    _: AuthenticatedPrincipal = Security(require_api_key),
 ) -> ModelMetricsResponse:
     row = db.query(ModelMetric).order_by(ModelMetric.created_at.desc()).first()
     if not row:
@@ -689,7 +634,6 @@ def latest_model_metrics(
 @router.get("/model-metrics/history", response_model=ModelMetricsHistoryResponse)
 def model_metrics_history(
     db: Session = Depends(get_db),
-    _: AuthenticatedPrincipal = Security(require_api_key),
 ) -> ModelMetricsHistoryResponse:
     rows = db.query(ModelMetric).order_by(ModelMetric.created_at.asc()).all()
     return ModelMetricsHistoryResponse(
@@ -713,7 +657,6 @@ def model_metrics_history(
 def predict(
     payload: dict,
     db: Session = Depends(get_db),
-    _: AuthenticatedPrincipal = Security(require_api_key),
 ) -> dict:
     bundle = load_model()
     model = bundle["model"]
@@ -777,17 +720,10 @@ def chat(payload: dict, db: Session = Depends(get_db)) -> dict:
         if message.get("role") in {"user", "assistant"} and message.get("content")
     )
 
-    if not settings.gemini_api_key:
-        return {"answer": build_local_chat_answer(user_messages[-1]["content"], market_context), "mode": "local"}
-
     try:
-        answer = call_gemini(model_messages)
+        answer = call_gemini_chat(model_messages, market_context)
         return {"answer": answer, "mode": "gemini"}
-    except httpx.HTTPStatusError as exc:
-        response_text = exc.response.text[:500] if exc.response is not None and exc.response.text else ""
-        raise HTTPException(
-            status_code=502,
-            detail=f"Erreur Gemini {exc.response.status_code if exc.response else 'unknown'}: {response_text or str(exc)}",
-        ) from exc
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Erreur reseau Gemini : {exc}") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Erreur Gemini: {exc}") from exc
