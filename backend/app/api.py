@@ -299,35 +299,96 @@ def build_market_analysis(rows: list[PropertyTrain], price_per_m2: list[float], 
 def build_local_chat_answer(question: str, market_context: str) -> str:
     return (
         "Assistant IA en mode local.\n\n"
-        "La cle OpenRouter n'est pas configuree, donc je ne peux pas appeler un modele distant pour le moment.\n"
+        "La cle Gemini n'est pas configuree, donc je ne peux pas appeler un modele distant pour le moment.\n"
         "Voici le contexte marche disponible depuis Neon pour t'aider :\n\n"
         f"{market_context}\n\n"
         f"Question recue : {question}\n"
-        "Ajoute OPENROUTER_API_KEY dans .env pour obtenir une vraie reponse IA contextualisee."
+        "Ajoute GEMINI_API_KEY dans .env pour obtenir une vraie reponse IA contextualisee."
     )
 
 
-def call_openrouter(messages: list[dict]) -> str:
+def call_gemini(messages: list[dict]) -> str:
     headers = {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": settings.openrouter_site_url,
-        "X-OpenRouter-Title": settings.openrouter_app_name,
+        "x-goog-api-key": settings.gemini_api_key,
     }
+    contents = [
+        {
+            "role": message["role"],
+            "parts": [{"text": message["content"]}],
+        }
+        for message in messages
+        if message.get("role") in {"user", "assistant"}
+        and message.get("content")
+    ]
     payload = {
-        "model": settings.openrouter_model,
-        "messages": messages,
-        "temperature": 0.3,
+        "contents": contents,
+        "systemInstruction": {
+            "parts": [{"text": "Tu es un assistant d'analyse du marche immobilier. Reponds en texte brut, sans Markdown, sans titres avec #, sans gras."}]
+        },
+        "generationConfig": {"temperature": 0.3},
     }
+    base_url = "https://generativelanguage.googleapis.com/v1beta"
+    model = settings.gemini_model.strip()
     response = httpx.post(
-        "https://openrouter.ai/api/v1/chat/completions",
+        f"{base_url}/models/{model}:generateContent",
         headers=headers,
         json=payload,
         timeout=60.0,
     )
     response.raise_for_status()
     data = response.json()
-    return data["choices"][0]["message"]["content"]
+    candidates = data.get("candidates") or []
+    if not candidates:
+        raise ValueError("No Gemini candidates returned.")
+    parts = candidates[0].get("content", {}).get("parts", [])
+    text = "".join(part.get("text", "") for part in parts if isinstance(part, dict))
+    if not text.strip():
+        raise ValueError("Empty Gemini response.")
+    return text
+
+
+def validate_prediction_payload(payload: dict) -> dict:
+    missing = [feature for feature in FEATURES if feature not in payload]
+    if missing:
+        raise HTTPException(status_code=422, detail=f"Missing features: {missing}")
+
+    numeric_features = {
+        "GrLivArea",
+        "LotArea",
+        "OverallQual",
+        "OverallCond",
+        "BedroomAbvGr",
+        "FullBath",
+        "GarageCars",
+        "GarageArea",
+        "MoSold",
+        "property_age",
+    }
+
+    validated = {}
+    invalid_numeric = []
+    for feature in FEATURES:
+        value = payload.get(feature)
+        if feature in numeric_features:
+            try:
+                numeric_value = float(value)
+            except (TypeError, ValueError):
+                invalid_numeric.append(feature)
+                continue
+            if numeric_value < 0:
+                invalid_numeric.append(feature)
+                continue
+            validated[feature] = numeric_value
+        else:
+            if not isinstance(value, str) or not value.strip():
+                raise HTTPException(status_code=422, detail=f"Invalid categorical feature: {feature}")
+            validated[feature] = value.strip()
+
+    if invalid_numeric:
+        raise HTTPException(status_code=422, detail=f"Invalid numeric features: {invalid_numeric}")
+
+    return validated
 
 
 @router.get("/health")
@@ -656,8 +717,9 @@ def predict(
 ) -> dict:
     bundle = load_model()
     model = bundle["model"]
+    validated_payload = validate_prediction_payload(payload)
 
-    predicted_price = float(model.predict(pd.DataFrame([payload])[FEATURES])[0])
+    predicted_price = float(model.predict(pd.DataFrame([validated_payload])[FEATURES])[0])
     response = {
         "predicted_price": round(predicted_price, 2),
         "lower_bound": round(predicted_price * 0.9, 2),
@@ -666,18 +728,18 @@ def predict(
     }
     db.add(
         UserPrediction(
-            gr_liv_area=payload.get("GrLivArea"),
-            lot_area=payload.get("LotArea"),
-            overall_qual=payload.get("OverallQual"),
-            overall_cond=payload.get("OverallCond"),
-            bedroom_abv_gr=payload.get("BedroomAbvGr"),
-            full_bath=payload.get("FullBath"),
-            garage_cars=payload.get("GarageCars"),
-            garage_area=payload.get("GarageArea"),
-            neighborhood=payload.get("Neighborhood"),
-            house_style=payload.get("HouseStyle"),
-            sale_month=payload.get("MoSold"),
-            property_age=payload.get("property_age"),
+            gr_liv_area=validated_payload.get("GrLivArea"),
+            lot_area=validated_payload.get("LotArea"),
+            overall_qual=validated_payload.get("OverallQual"),
+            overall_cond=validated_payload.get("OverallCond"),
+            bedroom_abv_gr=validated_payload.get("BedroomAbvGr"),
+            full_bath=validated_payload.get("FullBath"),
+            garage_cars=validated_payload.get("GarageCars"),
+            garage_area=validated_payload.get("GarageArea"),
+            neighborhood=validated_payload.get("Neighborhood"),
+            house_style=validated_payload.get("HouseStyle"),
+            sale_month=validated_payload.get("MoSold"),
+            property_age=validated_payload.get("property_age"),
             predicted_price=response["predicted_price"],
             lower_bound=response["lower_bound"],
             upper_bound=response["upper_bound"],
@@ -715,20 +777,17 @@ def chat(payload: dict, db: Session = Depends(get_db)) -> dict:
         if message.get("role") in {"user", "assistant"} and message.get("content")
     )
 
-    if not settings.openrouter_api_key:
+    if not settings.gemini_api_key:
         return {"answer": build_local_chat_answer(user_messages[-1]["content"], market_context), "mode": "local"}
 
     try:
-        answer = call_openrouter(model_messages)
-        return {"answer": answer, "mode": "openrouter"}
+        answer = call_gemini(model_messages)
+        return {"answer": answer, "mode": "gemini"}
     except httpx.HTTPStatusError as exc:
         response_text = exc.response.text[:500] if exc.response is not None and exc.response.text else ""
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"Erreur OpenRouter {exc.response.status_code if exc.response else 'unknown'}: "
-                f"{response_text or str(exc)}"
-            ),
+            detail=f"Erreur Gemini {exc.response.status_code if exc.response else 'unknown'}: {response_text or str(exc)}",
         ) from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Erreur reseau OpenRouter : {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"Erreur reseau Gemini : {exc}") from exc

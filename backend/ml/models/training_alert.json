@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-05T12:25:52.751403+00:00",
+  "generated_at": "2026-07-06T22:13:10.434729+00:00",
   "severity": "critical",
   "channel": "simulated-webhook",
   "message": "Model performance drift detected during training.",

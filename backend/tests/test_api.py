@@ -96,11 +96,11 @@ def test_model_metrics_endpoints_require_api_key():
     assert history_response.status_code == 401
 
 
-def test_chat_endpoint_openrouter_mock(client, monkeypatch):
+def test_chat_endpoint_gemini_mock(client, monkeypatch):
     from backend.app import api
 
-    monkeypatch.setattr(api.settings, "openrouter_api_key", "test-key")
-    monkeypatch.setattr(api, "call_openrouter", lambda messages: "Mocked OpenRouter answer")
+    monkeypatch.setattr(api.settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(api, "call_gemini", lambda messages: "Mocked Gemini answer")
 
     response = client.post(
         "/api/chat",
@@ -108,5 +108,5 @@ def test_chat_endpoint_openrouter_mock(client, monkeypatch):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["mode"] == "openrouter"
-    assert data["answer"] == "Mocked OpenRouter answer"
+    assert data["mode"] == "gemini"
+    assert data["answer"] == "Mocked Gemini answer"

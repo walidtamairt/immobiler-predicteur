@@ -17,11 +17,11 @@ services:
         value: xgboost_v1
       - key: VITE_API_KEY
         sync: false
-      - key: OPENROUTER_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
-      - key: OPENROUTER_MODEL
-        value: google/gemma-4-31b-it:free
-      - key: OPENROUTER_SITE_URL
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: GEMINI_SITE_URL
         sync: false
-      - key: OPENROUTER_APP_NAME
+      - key: GEMINI_APP_NAME
         value: Estate AI

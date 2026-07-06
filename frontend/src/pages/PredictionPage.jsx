@@ -9,7 +9,6 @@ import {
   getLatestModelMetrics,
   getMarketFilters,
   getMarketDashboard,
-  getModelMetricsHistory,
   getPredictionHistory,
   predictProperty,
 } from "../services/api";
@@ -19,7 +18,6 @@ export default function PredictionPage() {
   const [history, setHistory] = useState([]);
   const [marketKpis, setMarketKpis] = useState(null);
   const [modelMetrics, setModelMetrics] = useState(null);
-  const [modelMetricsHistory, setModelMetricsHistory] = useState([]);
   const [neighborhoodOptions, setNeighborhoodOptions] = useState([]);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -29,7 +27,6 @@ export default function PredictionPage() {
     getMarketDashboard().then((dashboard) => setMarketKpis(dashboard.kpis)).catch((requestError) => setLoadError(getErrorMessage(requestError)));
     getMarketFilters().then((payload) => setNeighborhoodOptions(payload.neighborhoods || [])).catch((requestError) => setLoadError(getErrorMessage(requestError)));
     getLatestModelMetrics().then(setModelMetrics).catch((requestError) => setLoadError(getErrorMessage(requestError)));
-    getModelMetricsHistory().then((payload) => setModelMetricsHistory(payload.items || [])).catch((requestError) => setLoadError(getErrorMessage(requestError)));
   }, []);
 
   async function handlePredict(payload) {
@@ -54,7 +51,7 @@ export default function PredictionPage() {
         <PredictionForm onPredict={handlePredict} error={error} neighborhoodOptions={neighborhoodOptions} />
         <PredictionResult result={result} marketKpis={marketKpis} />
       </div>
-      <ModelHealthSection latest={modelMetrics} history={modelMetricsHistory} />
+      <ModelHealthSection latest={modelMetrics} />
       <PredictionHistory history={history} />
     </PageContainer>
   );
