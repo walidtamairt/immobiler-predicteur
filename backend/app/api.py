@@ -638,9 +638,6 @@ def predict(
 ) -> dict:
     bundle = load_model()
     model = bundle["model"]
-    missing = [feature for feature in FEATURES if feature not in payload]
-    if missing:
-        raise HTTPException(status_code=422, detail=f"Missing features: {missing}")
 
     predicted_price = float(model.predict(pd.DataFrame([payload])[FEATURES])[0])
     response = {

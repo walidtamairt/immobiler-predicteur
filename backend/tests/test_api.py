@@ -1,3 +1,8 @@
+from fastapi.testclient import TestClient
+
+from backend.app.main import app
+
+
 def test_overview_endpoint(client):
     response = client.get("/api/overview")
     assert response.status_code == 200
@@ -79,6 +84,16 @@ def test_model_metrics_history_endpoint(client):
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
+
+
+def test_model_metrics_endpoints_require_api_key():
+    unauthenticated_client = TestClient(app)
+
+    latest_response = unauthenticated_client.get("/api/model-metrics/latest")
+    history_response = unauthenticated_client.get("/api/model-metrics/history")
+
+    assert latest_response.status_code == 401
+    assert history_response.status_code == 401
 
 
 def test_chat_endpoint_openrouter_mock(client, monkeypatch):

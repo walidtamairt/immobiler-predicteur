@@ -295,6 +295,7 @@ textarea {
 
 .filter-field select,
 .filter-field input,
+.form-field select,
 .form-field input,
 .assistant-form textarea {
   width: 100%;
@@ -315,10 +316,17 @@ textarea {
 
 .filter-field select:focus,
 .filter-field input:focus,
+.form-field select:focus,
 .form-field input:focus,
 .assistant-form textarea:focus {
   border-color: var(--line-strong);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+}
+
+.field-error {
+  color: #fca5a5;
+  font-size: 0.82rem;
+  line-height: 1.2;
 }
 
 .filters-actions {

@@ -9,10 +9,14 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+      - key: API_KEY
+        sync: false
       - key: MODEL_PATH
         value: backend/ml/models/xgboost_model.joblib
       - key: MODEL_VERSION
         value: xgboost_v1
+      - key: VITE_API_KEY
+        sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL

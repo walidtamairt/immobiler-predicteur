@@ -2,7 +2,7 @@ name: ci-cd
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "clean-main"]
   pull_request:
 
 env:
