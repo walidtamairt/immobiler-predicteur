@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.auth import AuthenticatedPrincipal, require_api_key
+from backend.app.chat_service import generate_chat_answer
 from backend.app.database import get_db
 from backend.app.models import (
     BatchPrediction,
@@ -690,5 +691,15 @@ def predict(
     )
     db.commit()
     return response
+
+
+@router.post("/chat")
+def chat(payload: dict) -> dict:
+    messages = payload.get("messages", [])
+    if not isinstance(messages, list) or not messages:
+        raise HTTPException(status_code=422, detail="messages is required")
+
+    result = generate_chat_answer(messages)
+    return {"answer": result.answer, "mode": result.provider}
 
 

@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
+from backend.app import api
 
 
 def test_overview_endpoint(client):
@@ -83,5 +84,23 @@ def test_model_metrics_endpoints_are_public_for_prediction_page():
 
     assert latest_response.status_code == 200
     assert history_response.status_code == 200
+
+
+def test_chat_endpoint_returns_answer_without_auth(client, monkeypatch):
+    monkeypatch.setattr(
+        api,
+        "generate_chat_answer",
+        lambda messages: type("Result", (), {"answer": "Bonjour", "provider": "local"})(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={"messages": [{"role": "user", "content": "Bonjour"}]},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"] == "Bonjour"
+    assert data["mode"] == "local"
 
 
