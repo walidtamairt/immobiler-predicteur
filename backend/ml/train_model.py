@@ -20,6 +20,7 @@ from sklearn.preprocessing import OneHotEncoder
 from xgboost import XGBRegressor
 
 from backend.config.settings import get_settings
+from backend.app.models import PropertyTrain
 from backend.database.db import SessionLocal
 from backend.utils.logger import get_logger
 from sqlalchemy import text
@@ -59,7 +60,47 @@ TARGET = "SalePrice"
 def load_training_data(csv_path: str | Path = "data/processed/train_clean.csv") -> pd.DataFrame:
     path = Path(csv_path)
     if not path.exists():
-        raise FileNotFoundError(f"Training file not found: {path}")
+        db = SessionLocal()
+        try:
+            rows = db.query(
+                PropertyTrain.gr_liv_area,
+                PropertyTrain.lot_area,
+                PropertyTrain.overall_qual,
+                PropertyTrain.overall_cond,
+                PropertyTrain.bedroom_abv_gr,
+                PropertyTrain.full_bath,
+                PropertyTrain.garage_cars,
+                PropertyTrain.garage_area,
+                PropertyTrain.neighborhood,
+                PropertyTrain.house_style,
+                PropertyTrain.sale_month,
+                PropertyTrain.property_age,
+                PropertyTrain.sale_price,
+            ).all()
+        finally:
+            db.close()
+
+        if not rows:
+            raise FileNotFoundError(f"Training file not found and no database rows were available: {path}")
+
+        return pd.DataFrame(
+            rows,
+            columns=[
+                "GrLivArea",
+                "LotArea",
+                "OverallQual",
+                "OverallCond",
+                "BedroomAbvGr",
+                "FullBath",
+                "GarageCars",
+                "GarageArea",
+                "Neighborhood",
+                "HouseStyle",
+                "MoSold",
+                "property_age",
+                "SalePrice",
+            ],
+        )
     return pd.read_csv(path)
 
 
