@@ -8,21 +8,50 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.config.settings import get_settings
+from backend.etl.clean_data import clean_and_save
 from backend.database.db import SessionLocal
 from backend.utils.logger import get_logger
 from backend.ml.train_model import FEATURES
+from backend.ml.train_model import train_and_save_model
 
 logger = get_logger(__name__)
 
 
 def load_model():
     settings = get_settings()
-    model_path = Path(settings.model_path)
-    if not model_path.exists():
-        model_path = Path("backend/ml/models/xgboost_model.joblib")
-    if not model_path.exists():
-        raise FileNotFoundError("Model artifact not found")
-    return joblib.load(model_path)
+    candidate_paths = [
+        Path(settings.model_path),
+        Path("backend/ml/models/xgboost_model.joblib"),
+    ]
+    last_error: Exception | None = None
+
+    for model_path in candidate_paths:
+        if not model_path.exists():
+            continue
+        try:
+            return joblib.load(model_path)
+        except Exception as exc:
+            last_error = exc
+            logger.warning("Unable to load model artifact from %s: %s", model_path, exc)
+
+    try:
+        if not Path("data/processed/train_clean.csv").exists() or not Path("data/processed/test_clean.csv").exists():
+            clean_and_save("data/raw/train.csv", "data/raw/test.csv")
+        train_and_save_model()
+    except Exception as exc:
+        raise FileNotFoundError("Model artifact not found and auto-retraining failed") from exc
+
+    for model_path in candidate_paths:
+        if model_path.exists():
+            try:
+                return joblib.load(model_path)
+            except Exception as exc:
+                last_error = exc
+                logger.warning("Unable to load regenerated model artifact from %s: %s", model_path, exc)
+
+    if last_error is not None:
+        raise FileNotFoundError("Model artifact could not be loaded") from last_error
+    raise FileNotFoundError("Model artifact not found")
 
 
 def load_test_data(csv_path: str | Path = "data/processed/test_clean.csv") -> pd.DataFrame:

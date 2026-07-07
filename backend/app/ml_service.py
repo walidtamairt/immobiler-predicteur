@@ -1,7 +1,5 @@
 import json
-from pathlib import Path
 
-import joblib
 import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -9,15 +7,18 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .models import PredictionLog
 from .schemas import PredictionInput
+from backend.ml.predict_batch import load_model
 
 settings = get_settings()
 
 
 def load_model_bundle() -> dict:
-    model_path = Path(settings.model_path)
-    if not model_path.exists():
-        raise HTTPException(status_code=503, detail="Model artifact not found. Train the model first.")
-    return joblib.load(model_path)
+    try:
+        return load_model()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail="Model artifact not found. Train the model first.") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Unable to load model artifact: {exc}") from exc
 
 
 def predict_price(payload: PredictionInput, db: Session) -> dict:
