@@ -8,11 +8,9 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.config.settings import get_settings
-from backend.etl.clean_data import clean_and_save
 from backend.database.db import SessionLocal
 from backend.utils.logger import get_logger
-from backend.ml.train_model import FEATURES
-from backend.ml.train_model import train_and_save_model
+from backend.ml.train_model import FEATURES, train_and_save_model
 
 logger = get_logger(__name__)
 
@@ -35,8 +33,6 @@ def load_model():
             logger.warning("Unable to load model artifact from %s: %s", model_path, exc)
 
     try:
-        if not Path("data/processed/train_clean.csv").exists() or not Path("data/processed/test_clean.csv").exists():
-            clean_and_save("data/raw/train.csv", "data/raw/test.csv")
         train_and_save_model()
     except Exception as exc:
         raise FileNotFoundError("Model artifact not found and auto-retraining failed") from exc
