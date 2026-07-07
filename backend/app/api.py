@@ -9,7 +9,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.auth import AuthenticatedPrincipal, require_api_key
-from backend.app.chat_service import call_gemini_chat
 from backend.app.database import get_db
 from backend.app.models import (
     BatchPrediction,
@@ -693,37 +692,3 @@ def predict(
     return response
 
 
-@router.post("/chat")
-def chat(payload: dict, db: Session = Depends(get_db)) -> dict:
-    messages = payload.get("messages", [])
-    if not messages:
-        raise HTTPException(status_code=422, detail="messages is required")
-
-    trimmed_messages = messages[-8:]
-    user_messages = [message for message in trimmed_messages if message.get("role") == "user"]
-    if not user_messages:
-        raise HTTPException(status_code=422, detail="At least one user message is required")
-
-    market_context = build_market_summary(db)
-    system_prompt = (
-        "Tu es un assistant d'analyse du marche immobilier.\n"
-        "Reponds d'abord a partir du contexte fourni.\n"
-        "Si une information manque, dis-le clairement.\n"
-        "N'invente jamais de chiffres.\n"
-        "Sois clair, concis et utile.\n\n"
-        f"CONTEXTE MARCHE :\n{market_context}"
-    )
-    model_messages = [{"role": "system", "content": system_prompt}]
-    model_messages.extend(
-        {"role": message["role"], "content": message["content"]}
-        for message in trimmed_messages
-        if message.get("role") in {"user", "assistant"} and message.get("content")
-    )
-
-    try:
-        answer = call_gemini_chat(model_messages, market_context)
-        return {"answer": answer, "mode": "gemini"}
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Erreur Gemini: {exc}") from exc

@@ -18,20 +18,6 @@ def test_filters_endpoint(client):
     assert "CollgCr" in data["neighborhoods"]
 
 
-def test_chat_endpoint_gemini_mode(client, monkeypatch):
-    from backend.app import api
-
-    monkeypatch.setattr(api, "call_gemini_chat", lambda messages, market_context: "Mocked Gemini answer")
-    response = client.post(
-        "/api/chat",
-        json={"messages": [{"role": "user", "content": "Quel quartier semble le plus cher ?"}]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["mode"] == "gemini"
-    assert data["answer"] == "Mocked Gemini answer"
-
-
 def test_market_data_endpoint(client):
     response = client.get("/api/market-data")
     assert response.status_code == 200
@@ -99,16 +85,3 @@ def test_model_metrics_endpoints_are_public_for_prediction_page():
     assert history_response.status_code == 200
 
 
-def test_chat_endpoint_gemini_mock(client, monkeypatch):
-    from backend.app import api
-
-    monkeypatch.setattr(api, "call_gemini_chat", lambda messages, market_context: "Mocked Gemini answer")
-
-    response = client.post(
-        "/api/chat",
-        json={"messages": [{"role": "user", "content": "Quelle saison est la plus favorable ?"}]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["mode"] == "gemini"
-    assert data["answer"] == "Mocked Gemini answer"
