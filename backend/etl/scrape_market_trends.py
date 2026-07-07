@@ -18,6 +18,7 @@ from backend.utils.logger import get_logger
 logger = get_logger(__name__)
 
 DEFAULT_HTML_SOURCE = Path("data/external/mock_market_trends.html")
+FALLBACK_HTML_SOURCE = Path(__file__).resolve().parents[2] / "data" / "external" / "mock_market_trends.html"
 DEFAULT_OUTPUT_DIR = Path("data/external")
 DEFAULT_SEARCH_QUERY = "real estate usa prices by city"
 DUCKDUCKGO_HTML_URL = "https://html.duckduckgo.com/html/"
@@ -43,12 +44,21 @@ def _normalize_text(value: str) -> str:
 def fetch_html_document(source: str | Path | None = None) -> str:
     target = source or DEFAULT_HTML_SOURCE
     if isinstance(target, Path):
-        return target.read_text(encoding="utf-8")
+        if target.exists():
+            return target.read_text(encoding="utf-8")
+        if source is None and FALLBACK_HTML_SOURCE.exists():
+            return FALLBACK_HTML_SOURCE.read_text(encoding="utf-8")
+        raise FileNotFoundError(f"HTML source not found: {target}")
 
     if str(target).startswith(("http://", "https://")):
         return fetch_html_from_url(str(target))
 
-    return Path(target).read_text(encoding="utf-8")
+    path = Path(target)
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+    if source is None and FALLBACK_HTML_SOURCE.exists():
+        return FALLBACK_HTML_SOURCE.read_text(encoding="utf-8")
+    raise FileNotFoundError(f"HTML source not found: {path}")
 
 
 def fetch_html_from_url(url: str) -> str:

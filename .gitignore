@@ -29,6 +29,7 @@ backend/*.db
 # Generated data outputs
 data/processed/
 data/external/
+!data/external/mock_market_trends.html
 
 # Frontend dependencies and builds
 frontend/node_modules/
